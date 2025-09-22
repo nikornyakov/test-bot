@@ -1,4 +1,4 @@
-name: Get Group ID
+name: Test Get Group ID
 
 on:
   workflow_dispatch:
