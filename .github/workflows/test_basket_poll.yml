@@ -25,7 +25,7 @@ jobs:
       env:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         GROUP_ID: ${{ secrets.GROUP_ID }}
-      run: python test_poll.py
+      run: python test_basket_poll.py
         
     - name: Upload logs
       uses: actions/upload-artifact@v4
