@@ -1,0 +1,35 @@
+name: Send Welcome Message
+
+on:
+  workflow_dispatch:  # Только ручной запуск
+
+jobs:
+  send-welcome:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install python-telegram-bot==20.7
+        
+    - name: Send welcome message
+      env:
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        GROUP_ID: ${{ secrets.GROUP_ID }}
+      run: python simple_bot.py welcome
+        
+    - name: Upload logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: welcome-logs
+        path: "*.log"
