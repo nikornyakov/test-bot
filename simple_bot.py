@@ -22,7 +22,7 @@ async def send_welcome_message(bot, group_id):
         welcome_text = """
 *👋 Привет, будущие Майклы Джорданы и Стефены Керри! 🏀*
 
-*📅 РАСПИСАНИЕ ТРЕНИРОВОК НА НЕДЕЛЮ:*
+*📅 РАСПИСАНИЕ ТРЕНИРОВОК НА СЛЕДУЮЩУЮ НЕДЕЛЮ:*
 
 ВТОРНИК: 🏀 *19:00-20:30*
 
