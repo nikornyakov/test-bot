@@ -2,167 +2,104 @@ import os
 import logging
 import asyncio
 from datetime import datetime, timedelta
-from telegram import Bot
-from telegram.error import TelegramError
+from bot_base import TelegramBotBase, format_training_date, get_day_of_week
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("simple_bot.log", encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
-async def send_welcome_message(bot, group_id):
+async def send_welcome_message(bot_instance):
     """Функция отправки приветственного сообщения"""
-    try:
-        welcome_text = """
-*👋 Привет, будущие Майклы Джорданы и Стефены Керри! 🏀*
+    welcome_text = """
+Привет всем! Ваш бот с баскетбольными пожеланиями! 🏀
 
 *📅 РАСПИСАНИЕ ТРЕНИРОВОК НА СЛЕДУЮЩУЮ НЕДЕЛЮ:*
 
-ВТОРНИК: 🏀 *19:00-20:30*
+ВТОРНИК : 🏀 *19:00-20:30*
 
-ЧЕТВЕРГ: 🏀 *19:00-20:30*
+ЧЕТВЕРГ : 🏀 *19:00-20:30*
 
-*📍 АДРЕС ЗАЛА:* "Basket Hall" ул. Салова, 57 корпус 5
-(Тот самый зал, где кольцо иногда прощает ваши промахи 😄)
+*📅 БУДЬТЕ В КУРСЕ:*
+Команда Авито играет в турнире Шестового дивизиона НБЛ
+🏀 СУББОТА: 29.11 16:10 *Авито vs Балтика*
+Смотрите трансляцию https://vk.com/nevabasket
 
-🎉 Выходные - время для:
-- Восстановления мышц (и гордости)
-- Просмотра матчей НБА для вдохновения
-- Рассказов друзьям о своих "почти как у профессионалов" бросках
+*📍 АДРЕС ЗАЛА:* "Basket Hall" 
+ул. Салова, 57 корпус 5
 
-💪 ПОЖЕЛАНИЯ НА НЕДЕЛЮ:
-
-- Пусть ваши броски будут точными, как GPS-навигатор!
-- Пусть передачи будут острыми, как свежий перец чили!
-- Пусть обводки будут красивыми, как котики из интернета!
-- И главное - пусть настроение будет на высоте!
+Продуктивных выходных!❄️🏀
         """
-        
-        await bot.send_message(
-            chat_id=group_id,
-            text=welcome_text,
-            parse_mode='Markdown'
-        )
-        
-        logger.info("Приветственное сообщение отправлено")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Ошибка при отправке приветственного сообщения: {e}")
-        return False
+    
+    success = await bot_instance.send_message(welcome_text, parse_mode='Markdown')
+    if success:
+        bot_instance.logger.info("Приветственное сообщение отправлено")
+    return success
 
 async def send_simple_poll():
     """Упрощенная функция отправки опроса"""
-    try:
-        # Получаем токен из переменных окружения
-        token = os.getenv("BOT_TOKEN")
-        group_id = os.getenv("GROUP_ID")
+    bot_instance = TelegramBotBase("simple_bot.log")
+    
+    # Определяем текущий день недели
+    day_of_week = get_day_of_week()
+    
+    # Определяем текст опроса в зависимости от дня недели
+    if day_of_week == 0:  # Понедельник
+        training_date = format_training_date(1)
+        question = f"Баскетбол во вторник ({training_date}) 🏀"
+        options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю", "⏰ Планирую опоздать"]
+        poll_message = f"Тренировка во вторник ({training_date}) с 19:00 до 20:30. Кто будет?"
         
-        logger.info(f"Получены переменные: BOT_TOKEN={token[:10]}..., GROUP_ID={group_id}")
+    elif day_of_week == 2:  # Среда
+        training_date = format_training_date(1)
+        question = f"Баскетбол в четверг ({training_date}) 🏀"
+        options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю", "⏰ Планирую опоздать"]
+        poll_message = f"Тренировка в четверг ({training_date}) с 19:00 до 20:30. Кто будет?"
         
-        if not token or not group_id:
-            logger.error("Не установлены BOT_TOKEN или GROUP_ID")
-            return False
-        
-        # Преобразуем group_id в целое число
-        try:
-            group_id = int(group_id)
-        except ValueError:
-            logger.error(f"GROUP_ID должен быть числом, получено: {group_id}")
-            return False
-        
-        # Определяем текущий день недели
-        now = datetime.now()
-        day_of_week = now.weekday()  # 0-пн, 1-вт, 2-ср, 3-чт, 4-пт, 5-сб, 6-вс
-        
-        # Форматируем дату для отображения
-        date_str = now.strftime("%d.%m.%Y")
-        
-        # Определяем текст опроса в зависимости от дня недели
-        if day_of_week == 0:  # Понедельник
-            training_date = (now + timedelta(days=1)).strftime("%d.%m.%Y")
-            question = f"Баскетбол во вторник ({training_date}) 🏀"
-            options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю"]
-            poll_message = f"Тренировка во вторник ({training_date}) с 19:00 до 20:30. Кто будет?"
-            
-        elif day_of_week == 2:  # Среда
-            training_date = (now + timedelta(days=1)).strftime("%d.%m.%Y")
-            question = f"Баскетбол в четверг ({training_date}) 🏀"
-            options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю"]
-            poll_message = f"Тренировка в четверг ({training_date}) с 19:00 до 20:30. Кто будет?"
-            
-        else:
-            logger.info(f"Сегодня не понедельник и не среда, опрос не требуется")
-            return False
-        
-        # Создаем экземпляр бота
-        bot = Bot(token=token)
-        logger.info("Бот успешно инициализирован")
-        
-        # Отправляем НЕанонимный опрос
-        logger.info(f"Отправляем опрос в группу: {question}")
-        await bot.send_poll(
-            chat_id=group_id,
-            question=question,
-            options=options,
-            is_anonymous=False,
-            allows_multiple_answers=False
-        )
-        
+    else:
+        bot_instance.logger.info(f"Сегодня не понедельник и не среда, опрос не требуется")
+        return False
+    
+    # Инициализируем бота
+    if not await bot_instance.initialize_bot():
+        return False
+    
+    # Отправляем опрос
+    success = await bot_instance.send_poll(
+        question=question,
+        options=options,
+        is_anonymous=False,
+        allows_multiple_answers=False
+    )
+    
+    if success:
         # Отправляем сообщение с инструкцией
         reminder = """
-        💡 Место проведения:
-        Basket Hall по адресу ул. Салова, 57 корпус 5.
+        💡 Место проведения: Basket Hall 
+        по адресу ул. Салова, 57 корпус 5.
         """
         
-        await bot.send_message(chat_id=group_id, text=poll_message + reminder)
-        
-        logger.info("Опрос успешно отправлен")
-        return True
-        
-    except TelegramError as e:
-        logger.error(f"Ошибка Telegram API при отправке опроса: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка при отправке опроса: {e}")
-        return False
+        await bot_instance.send_message(poll_message + reminder)
+        bot_instance.logger.info("Опрос успешно отправлен")
+    
+    return success
 
 async def send_training_reminder():
     """Функция отправки напоминания о тренировке"""
-    try:
-        # Получаем токен из переменных окружения
-        token = os.getenv("BOT_TOKEN")
-        group_id = os.getenv("GROUP_ID")
-        
-        if not token or not group_id:
-            logger.error("Не установлены BOT_TOKEN или GROUP_ID")
-            return False
-        
-        group_id = int(group_id)
-        
-        # Определяем текущий день недели
-        now = datetime.now()
-        day_of_week = now.weekday()
-        
-        # Отправляем напоминание только по вторникам и четвергам
-        if day_of_week == 1:  # Вторник
-            training_day = "сегодня"
-        elif day_of_week == 3:  # Четверг
-            training_day = "сегодня"
-        else:
-            logger.info(f"Сегодня не вторник и не четверг, напоминание не требуется")
-            return False
-        
-        # Создаем экземпляр бота
-        bot = Bot(token=token)
-        
-        reminder = f"""
+    bot_instance = TelegramBotBase("simple_bot.log")
+    
+    # Определяем текущий день недели
+    day_of_week = get_day_of_week()
+    
+    # Отправляем напоминание только по вторникам и четвергам
+    if day_of_week == 1:  # Вторник
+        training_day = "сегодня"
+    elif day_of_week == 3:  # Четверг
+        training_day = "сегодня"
+    else:
+        bot_instance.logger.info(f"Сегодня не вторник и не четверг, напоминание не требуется")
+        return False
+    
+    # Инициализируем бота
+    if not await bot_instance.initialize_bot():
+        return False
+    
+    reminder = f"""
 ⏰ Напоминание
 Тренировка {training_day} в 19:00-20:30! 
 
@@ -172,51 +109,36 @@ async def send_training_reminder():
 • Воду
 • Хорошее настроение!
 
-Посмотрите результаты вчерашнего опроса, чтобы знать, кто будет сегодня.
-
-💡 
-По прибытию на ресепшене можете узнать номер зала и раздевалки.
+По прибытию на ресепшене узнайте номер зала и раздевалки.
         """
-        
-        # Отправляем напоминание
-        await bot.send_message(chat_id=group_id, text=reminder)
-        
-        logger.info("Напоминание о тренировке отправлено")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Ошибка при отправке напоминания: {e}")
-        return False
+    
+    # Отправляем напоминание
+    success = await bot_instance.send_message(reminder)
+    
+    if success:
+        bot_instance.logger.info("Напоминание о тренировке отправлено")
+    
+    return success
 
 async def send_manual_welcome():
     """Функция для ручной отправки приветственного сообщения"""
-    try:
-        token = os.getenv("BOT_TOKEN")
-        group_id = os.getenv("GROUP_ID")
-        
-        if not token or not group_id:
-            logger.error("Не установлены BOT_TOKEN или GROUP_ID")
-            return False
-        
-        group_id = int(group_id)
-        bot = Bot(token=token)
-        
-        await send_welcome_message(bot, group_id)
-        return True
-        
-    except Exception as e:
-        logger.error(f"Ошибка при отправке приветственного сообщения: {e}")
+    bot_instance = TelegramBotBase("simple_bot.log")
+    
+    if not await bot_instance.initialize_bot():
         return False
+    
+    success = await send_welcome_message(bot_instance)
+    return success
 
 async def main():
     """Основная асинхронная функция"""
+    logger = logging.getLogger(__name__)
     logger.info("=" * 50)
     logger.info("Запуск упрощенной версии бота")
     logger.info("=" * 50)
     
     # Определяем, что нужно делать в зависимости от дня недели
-    now = datetime.now()
-    day_of_week = now.weekday()
+    day_of_week = get_day_of_week()
     
     # Проверяем, есть ли аргумент командной строки для приветствия
     import sys

@@ -2,8 +2,8 @@ name: Send Welcome Message
 
 on:
   schedule:
-    # Суббота в 12:00 UTC (15:00 по Москве)
-    - cron: '0 12 * * 6'
+    # Суббота в 14:00 UTC (17:00 по Москве)
+    #- cron: '0 14 * * 6'
   workflow_dispatch:  # Сохраняем возможность ручного запуска
 
 jobs:
