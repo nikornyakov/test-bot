@@ -6,6 +6,8 @@ on:
     - cron: '0 17 * * 0'
     # Месячный отчет - 1 числа каждого месяца в 10:00 МСК
     - cron: '0 7 1 * *'
+    # Годовой отчет - 1 января в 12:00 МСК
+    - cron: '0 9 1 1 *'
   workflow_dispatch:
     inputs:
       report_type:
@@ -16,11 +18,17 @@ on:
         options:
         - attendance
         - monthly
+        - yearly
         - full
       days_back:
         description: 'Количество дней для отчета посещаемости'
         required: false
         default: '30'
+        type: string
+      year:
+        description: 'Год для годового отчета'
+        required: false
+        default: ''
         type: string
 
 jobs:
@@ -67,6 +75,14 @@ jobs:
       run: |
         python reports/generate_reports.py monthly
         
+    - name: Generate yearly report
+      if: github.event_name == 'schedule' && github.event.schedule == '0 9 1 1 *'
+      env:
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        GROUP_ID: ${{ secrets.GROUP_ID }}
+      run: |
+        python reports/generate_reports.py yearly
+        
     - name: Generate manual report
       if: github.event_name == 'workflow_dispatch'
       env:
@@ -75,6 +91,7 @@ jobs:
       run: |
         REPORT_TYPE="${{ github.event.inputs.report_type }}"
         DAYS_BACK="${{ github.event.inputs.days_back }}"
+        YEAR="${{ github.event.inputs.year }}"
         
         case $REPORT_TYPE in
           "attendance")
@@ -82,6 +99,13 @@ jobs:
             ;;
           "monthly")
             python reports/generate_reports.py monthly
+            ;;
+          "yearly")
+            if [ -n "$YEAR" ]; then
+              python reports/generate_reports.py yearly $YEAR
+            else
+              python reports/generate_reports.py yearly
+            fi
             ;;
           "full")
             python reports/generate_reports.py full

@@ -146,6 +146,30 @@ class PollTracker(TelegramBotBase):
             self.logger.error(f"Ошибка при отправке месячного отчета: {e}")
             return False
     
+    async def send_yearly_report(self, year: int = None) -> bool:
+        """Отправить годовой отчет"""
+        try:
+            if year is None:
+                year = datetime.now().year
+            
+            # Генерируем отчет
+            report_data = self.analytics.generate_yearly_report(year)
+            
+            # Форматируем сообщение
+            message = self.analytics.format_yearly_report_message(report_data)
+            
+            # Отправляем в группу
+            success = await self.send_message(message, parse_mode='Markdown')
+            
+            if success:
+                self.logger.info(f"Годовой отчет за {year} отправлен")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка при отправке годового отчета: {e}")
+            return False
+    
     async def send_attendance_stats(self, days_back: int = 30) -> bool:
         """Отправить статистику посещаемости"""
         try:

@@ -189,6 +189,121 @@ class PollAnalytics:
             'player_stats': [asdict(p) for p in player_stats[:10]]  # Топ-10 игроков
         }
     
+    def generate_yearly_report(self, year: int = None) -> Dict[str, Any]:
+        """Сгенерировать годовой отчет"""
+        if year is None:
+            year = datetime.now().year
+            
+        start_date = f"{year}-01-01"
+        end_date = f"{year+1}-01-01"
+        
+        polls = self.get_polls_by_date_range(start_date, end_date)
+        player_stats = self.calculate_player_stats(days_back=400)  # Берем большой период для года
+        
+        # Общая статистика за год
+        total_polls = len(polls)
+        total_votes = sum(p.total_votes for p in polls)
+        avg_participation = total_votes / total_polls if total_polls > 0 else 0
+        
+        # Статистика по месяцам
+        monthly_stats = {}
+        for month in range(1, 13):
+            month_start = f"{year}-{month:02d}-01"
+            if month == 12:
+                month_end = f"{year+1}-01-01"
+            else:
+                month_end = f"{year}-{month+1:02d}-01"
+            
+            month_polls = self.get_polls_by_date_range(month_start, month_end)
+            if month_polls:
+                month_votes = sum(p.total_votes for p in month_polls)
+                monthly_stats[month] = {
+                    'month': month,
+                    'month_name': self._get_month_name(month),
+                    'polls': len(month_polls),
+                    'avg_participation': round(month_votes / len(month_polls), 1) if month_polls else 0
+                }
+        
+        # Посещаемость по тренировкам
+        attendance_by_date = {}
+        for poll in polls:
+            attendance_by_date[poll.date] = {
+                'date': poll.date,
+                'training_date': poll.training_date,
+                'total_votes': poll.total_votes,
+                'attended': poll.votes.get('✅ Буду', 0),
+                'skipped': poll.votes.get('❌ Не смогу', 0),
+                'maybe': poll.votes.get('🤔 Еще не знаю', 0),
+                'late': poll.votes.get('⏰ Планирую опоздать', 0)
+            }
+        
+        return {
+            'period': f"{year}",
+            'total_polls': total_polls,
+            'total_votes': total_votes,
+            'avg_participation': round(avg_participation, 1),
+            'monthly_stats': monthly_stats,
+            'attendance_by_date': attendance_by_date,
+            'player_stats': [asdict(p) for p in player_stats[:15]]  # Топ-15 игроков за год
+        }
+    
+    def _get_month_name(self, month: int) -> str:
+        """Получить название месяца"""
+        months = {
+            1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+            5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+            9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
+        }
+        return months.get(month, '')
+    
+    def format_yearly_report_message(self, report_data: Dict[str, Any]) -> str:
+        """Отформатировать годовой отчет для отправки в Telegram"""
+        period = report_data['period']
+        total_polls = report_data['total_polls']
+        avg_participation = report_data['avg_participation']
+        monthly_stats = report_data['monthly_stats']
+        
+        message = f"""🏀 *ГОДОВОЙ ОТЧЕТ ПО ПОСЕЩАЕМОСТИ*
+
+📅 *Год:* {period}
+
+📊 *ОБЩАЯ СТАТИСТИКА ЗА ГОД:*
+• Всего тренировок: {total_polls}
+• Среднее участие: {avg_participation} человек
+• Явка: {round((avg_participation / 8) * 100, 1)}% (из 8 игроков)
+
+📈 *СТАТИСТИКА ПО МЕСЯЦАМ:*
+
+"""
+        
+        # Добавляем статистику по месяцам
+        for month_data in monthly_stats.values():
+            month_emoji = "🔥" if month_data['avg_participation'] >= 6 else "👍" if month_data['avg_participation'] >= 4 else "📊"
+            message += f"{month_data['month_name']}: {month_data['polls']} тренировок, {month_data['avg_participation']} в среднем {month_emoji}\n"
+        
+        message += f"""
+🏆 *ТОП-10 ИГРОКОВ ЗА ГОД:*
+
+"""
+        
+        # Добавляем топ игроков за год
+        for i, player in enumerate(report_data['player_stats'][:10], 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+            attendance_emoji = "🔥" if player['attendance_rate'] >= 80 else "👍" if player['attendance_rate'] >= 60 else "📊"
+            
+            message += f"{medal} {player['player_name']} {attendance_emoji}\n"
+            message += f"   Посещаемость: {player['attendance_rate']}% ({player['attended']}/{player['total_polls']})\n\n"
+        
+        message += """📈 *АНАЛИТИКА ГОДА:*
+• Посещаемость рассчитывается как: (Посетил + Опоздал) / Всего тренировок
+• Игроки с посещаемостью ≥80% считаются самыми стабильными
+• Месячная статистика показывает динамику посещаемости в течение года
+
+💾 *Полная статистика доступна в файлах проекта*
+"""
+        
+        return message
+    
     def format_report_message(self, report_data: Dict[str, Any]) -> str:
         """Отформатировать отчет для отправки в Telegram"""
         period = report_data['period']

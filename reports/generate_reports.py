@@ -41,6 +41,18 @@ async def generate_attendance_report(days: int = 30):
     return success
 
 
+async def generate_yearly_report(year: int = None):
+    """Генерация и отправка годового отчета"""
+    tracker = PollTracker()
+    
+    if not await tracker.initialize_bot():
+        print("Ошибка инициализации бота")
+        return False
+    
+    success = await tracker.send_yearly_report(year)
+    return success
+
+
 async def generate_full_report():
     """Генерация полного отчета (месячный + посещаемость)"""
     tracker = PollTracker()
@@ -103,6 +115,7 @@ async def main():
         print("Использование:")
         print("  python generate_reports.py monthly [год] [месяц]")
         print("  python generate_reports.py attendance [дни]")
+        print("  python generate_reports.py yearly [год]")
         print("  python generate_reports.py full")
         print("  python generate_reports.py test_data")
         return
@@ -120,6 +133,11 @@ async def main():
             days = int(sys.argv[2]) if len(sys.argv) > 2 else 30
             success = await generate_attendance_report(days)
             print(f"Отчет по посещаемости за {days} дней {'отправлен' if success else 'не отправлен'}")
+        
+        elif command == "yearly":
+            year = int(sys.argv[2]) if len(sys.argv) > 2 else None
+            success = await generate_yearly_report(year)
+            print(f"Годовой отчет за {year if year else 'текущий год'} {'отправлен' if success else 'не отправлен'}")
         
         elif command == "full":
             success = await generate_full_report()
