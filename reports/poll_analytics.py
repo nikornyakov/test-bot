@@ -191,61 +191,81 @@ class PollAnalytics:
     
     def generate_yearly_report(self, year: int = None) -> Dict[str, Any]:
         """Сгенерировать годовой отчет"""
-        if year is None:
-            year = datetime.now().year
+        try:
+            if year is None:
+                year = datetime.now().year
+                
+            start_date = f"{year}-01-01"
+            end_date = f"{year+1}-01-01"
             
-        start_date = f"{year}-01-01"
-        end_date = f"{year+1}-01-01"
-        
-        polls = self.get_polls_by_date_range(start_date, end_date)
-        player_stats = self.calculate_player_stats(days_back=400)  # Берем большой период для года
-        
-        # Общая статистика за год
-        total_polls = len(polls)
-        total_votes = sum(p.total_votes for p in polls)
-        avg_participation = total_votes / total_polls if total_polls > 0 else 0
-        
-        # Статистика по месяцам
-        monthly_stats = {}
-        for month in range(1, 13):
-            month_start = f"{year}-{month:02d}-01"
-            if month == 12:
-                month_end = f"{year+1}-01-01"
+            polls = self.get_polls_by_date_range(start_date, end_date)
+            
+            # Если нет опросов за год, пробуем взять данные за последние 365 дней
+            if not polls:
+                self.logger.warning(f"Нет опросов за {year} год, пробуем взять данные за последние 365 дней")
+                player_stats = self.calculate_player_stats(days_back=365)
             else:
-                month_end = f"{year}-{month+1:02d}-01"
+                # Для годового отчета берем статистику за весь год
+                player_stats = self.calculate_player_stats(days_back=366)
             
-            month_polls = self.get_polls_by_date_range(month_start, month_end)
-            if month_polls:
-                month_votes = sum(p.total_votes for p in month_polls)
-                monthly_stats[month] = {
-                    'month': month,
-                    'month_name': self._get_month_name(month),
-                    'polls': len(month_polls),
-                    'avg_participation': round(month_votes / len(month_polls), 1) if month_polls else 0
+            # Общая статистика за год
+            total_polls = len(polls)
+            total_votes = sum(p.total_votes for p in polls)
+            avg_participation = total_votes / total_polls if total_polls > 0 else 0
+            
+            # Статистика по месяцам
+            monthly_stats = {}
+            for month in range(1, 13):
+                month_start = f"{year}-{month:02d}-01"
+                if month == 12:
+                    month_end = f"{year+1}-01-01"
+                else:
+                    month_end = f"{year}-{month+1:02d}-01"
+                
+                month_polls = self.get_polls_by_date_range(month_start, month_end)
+                if month_polls:
+                    month_votes = sum(p.total_votes for p in month_polls)
+                    monthly_stats[month] = {
+                        'month': month,
+                        'month_name': self._get_month_name(month),
+                        'polls': len(month_polls),
+                        'avg_participation': round(month_votes / len(month_polls), 1) if month_polls else 0
+                    }
+            
+            # Посещаемость по тренировкам
+            attendance_by_date = {}
+            for poll in polls:
+                attendance_by_date[poll.date] = {
+                    'date': poll.date,
+                    'training_date': poll.training_date,
+                    'total_votes': poll.total_votes,
+                    'attended': poll.votes.get('✅ Буду', 0),
+                    'skipped': poll.votes.get('❌ Не смогу', 0),
+                    'maybe': poll.votes.get('🤔 Еще не знаю', 0),
+                    'late': poll.votes.get('⏰ Планирую опоздать', 0)
                 }
-        
-        # Посещаемость по тренировкам
-        attendance_by_date = {}
-        for poll in polls:
-            attendance_by_date[poll.date] = {
-                'date': poll.date,
-                'training_date': poll.training_date,
-                'total_votes': poll.total_votes,
-                'attended': poll.votes.get('✅ Буду', 0),
-                'skipped': poll.votes.get('❌ Не смогу', 0),
-                'maybe': poll.votes.get('🤔 Еще не знаю', 0),
-                'late': poll.votes.get('⏰ Планирую опоздать', 0)
+            
+            return {
+                'period': f"{year}",
+                'total_polls': total_polls,
+                'total_votes': total_votes,
+                'avg_participation': round(avg_participation, 1),
+                'monthly_stats': monthly_stats,
+                'attendance_by_date': attendance_by_date,
+                'player_stats': [asdict(p) for p in player_stats[:15]]  # Топ-15 игроков за год
             }
-        
-        return {
-            'period': f"{year}",
-            'total_polls': total_polls,
-            'total_votes': total_votes,
-            'avg_participation': round(avg_participation, 1),
-            'monthly_stats': monthly_stats,
-            'attendance_by_date': attendance_by_date,
-            'player_stats': [asdict(p) for p in player_stats[:15]]  # Топ-15 игроков за год
-        }
+        except Exception as e:
+            self.logger.error(f"Ошибка при генерации годового отчета: {e}")
+            # Возвращаем пустой отчет в случае ошибки
+            return {
+                'period': f"{year}",
+                'total_polls': 0,
+                'total_votes': 0,
+                'avg_participation': 0,
+                'monthly_stats': {},
+                'attendance_by_date': {},
+                'player_stats': []
+            }
     
     def _get_month_name(self, month: int) -> str:
         """Получить название месяца"""
@@ -258,12 +278,28 @@ class PollAnalytics:
     
     def format_yearly_report_message(self, report_data: Dict[str, Any]) -> str:
         """Отформатировать годовой отчет для отправки в Telegram"""
-        period = report_data['period']
-        total_polls = report_data['total_polls']
-        avg_participation = report_data['avg_participation']
-        monthly_stats = report_data['monthly_stats']
-        
-        message = f"""🏀 *ГОДОВОЙ ОТЧЕТ ПО ПОСЕЩАЕМОСТИ*
+        try:
+            period = report_data['period']
+            total_polls = report_data['total_polls']
+            avg_participation = report_data['avg_participation']
+            monthly_stats = report_data['monthly_stats']
+            
+            # Если нет данных за год
+            if total_polls == 0:
+                return f"""🏀 *ГОДОВОЙ ОТЧЕТ ПО ПОСЕЩАЕМОСТИ*
+
+📅 *Год:* {period}
+
+🔍 *За {period} год не найдено данных об опросах*
+
+💡 *Возможные причины:*
+• Опросы не проводились в этом году
+• Нет сохраненных результатов опросов
+• Ошибка в сборе данных
+
+📱 *Попробуйте сгенерировать отчет за другой год или проверьте настройки бота*"""
+            
+            message = f"""🏀 *ГОДОВОЙ ОТЧЕТ ПО ПОСЕЩАЕМОСТИ*
 
 📅 *Год:* {period}
 
@@ -275,34 +311,44 @@ class PollAnalytics:
 📈 *СТАТИСТИКА ПО МЕСЯЦАМ:*
 
 """
-        
-        # Добавляем статистику по месяцам
-        for month_data in monthly_stats.values():
-            month_emoji = "🔥" if month_data['avg_participation'] >= 6 else "👍" if month_data['avg_participation'] >= 4 else "📊"
-            message += f"{month_data['month_name']}: {month_data['polls']} тренировок, {month_data['avg_participation']} в среднем {month_emoji}\n"
-        
-        message += f"""
+            
+            # Добавляем статистику по месяцам
+            for month_data in monthly_stats.values():
+                month_emoji = "🔥" if month_data['avg_participation'] >= 6 else "👍" if month_data['avg_participation'] >= 4 else "📊"
+                message += f"{month_data['month_name']}: {month_data['polls']} тренировок, {month_data['avg_participation']} в среднем {month_emoji}\n"
+            
+            message += f"""
 🏆 *ТОП-10 ИГРОКОВ ЗА ГОД:*
 
 """
-        
-        # Добавляем топ игроков за год
-        for i, player in enumerate(report_data['player_stats'][:10], 1):
-            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
-            attendance_emoji = "🔥" if player['attendance_rate'] >= 80 else "👍" if player['attendance_rate'] >= 60 else "📊"
             
-            message += f"{medal} {player['player_name']} {attendance_emoji}\n"
-            message += f"   Посещаемость: {player['attendance_rate']}% ({player['attended']}/{player['total_polls']})\n\n"
-        
-        message += """📈 *АНАЛИТИКА ГОДА:*
+            # Добавляем топ игроков за год
+            for i, player in enumerate(report_data['player_stats'][:10], 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+                attendance_emoji = "🔥" if player['attendance_rate'] >= 80 else "👍" if player['attendance_rate'] >= 60 else "📊"
+                
+                message += f"{medal} {player['player_name']} {attendance_emoji}\n"
+                message += f"   Посещаемость: {player['attendance_rate']}% ({player['attended']}/{player['total_polls']})\n\n"
+            
+            message += """📈 *АНАЛИТИКА ГОДА:*
 • Посещаемость рассчитывается как: (Посетил + Опоздал) / Всего тренировок
 • Игроки с посещаемостью ≥80% считаются самыми стабильными
 • Месячная статистика показывает динамику посещаемости в течение года
 
 💾 *Полная статистика доступна в файлах проекта*
 """
-        
-        return message
+            
+            return message
+        except Exception as e:
+            self.logger.error(f"Ошибка при форматировании годового отчета: {e}")
+            return f"""🏀 *ГОДОВОЙ ОТЧЕТ ПО ПОСЕЩАЕМОСТИ*
+
+❌ *Ошибка при формировании отчета за {report_data.get('period', 'неизвестный год')}*
+
+🔧 *Техническая информация:*
+{str(e)}
+
+📱 *Попробуйте запустить отчет еще раз или обратитесь к администратору*"""
     
     def format_report_message(self, report_data: Dict[str, Any]) -> str:
         """Отформатировать отчет для отправки в Telegram"""
