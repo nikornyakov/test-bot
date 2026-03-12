@@ -152,17 +152,54 @@ class PollTracker(TelegramBotBase):
             player_stats = self.analytics.calculate_player_stats(days_back)
             
             if not player_stats:
-                message = "📊 Нет данных о посещаемости за последние дни"
-                return await self.send_message(message)
+                message = """📊 *СТАТИСТИКА ПОСЕЩАЕМОСТИ*
+
+🔍 *За последние {} дней не найдено данных об опросах*
+
+💡 *Возможные причины:*
+• Опросы не проводились
+• Нет результатов опросов
+• Ошибка в сборе данных
+
+📱 *Проверьте настройки бота и наличие опросов в группе*""".format(days_back)
+                return await self.send_message(message, parse_mode='Markdown')
             
-            message = f"📊 *СТАТИСТИКА ПОСЕЩАЕМОСТИ (последние {days_back} дней)*\n\n"
+            # Рассчитываем общую статистику
+            total_players = len(player_stats)
+            avg_attendance = sum(p.attendance_rate for p in player_stats) / total_players if total_players > 0 else 0
+            active_players = len([p for p in player_stats if p.attendance_rate > 0])
             
-            # Топ-5 игроков
+            message = f"""📊 *СТАТИСТИКА ПОСЕЩАЕМОСТИ*
+
+📅 *Период:* последние {days_back} дней
+
+📈 *ОБЩАЯ СТАТИСТИКА:*
+• Всего игроков в базе: {total_players}
+• Активных игроков: {active_players}
+• Средняя посещаемость: {round(avg_attendance, 1)}%
+
+🏆 *ТОП-5 ИГРОКОВ:*
+
+"""
+            
+            # Топ-5 игроков с эмодзи
             for i, player in enumerate(player_stats[:5], 1):
-                message += f"{i}. {player.player_name}: {player.attendance_rate}% "
-                message += f"({player.attended}/{player.total_polls})\n"
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+                status_emoji = "🔥" if player.attendance_rate >= 80 else "👍" if player.attendance_rate >= 60 else "📊" if player.attendance_rate >= 40 else "⚠️"
+                
+                message += f"{medal} {player.player_name} {status_emoji}\n"
+                message += f"   Посещаемость: {player.attendance_rate}% ({player.attended}/{player.total_polls})\n"
+                message += f"   Детали: ✅{player.attended} ❌{player.skipped} 🤔{player.maybe} ⏰{player.late}\n\n"
             
-            message += f"\nВсего игроков в статистике: {len(player_stats)}"
+            # Добавляем легенду
+            message += """💡 *ЛЕГЕНДА:*
+• 🔥 Отличная посещаемость (≥80%)
+• 👍 Хорошая посещаемость (≥60%)
+• 📊 Средняя посещаемость (≥40%)
+• ⚠️ Низкая посещаемость (<40%)
+
+📋 *Детали:*
+✅ Посетил | ❌ Пропустил | 🤔 Не уверен | ⏰ Опоздал"""
             
             success = await self.send_message(message, parse_mode='Markdown')
             

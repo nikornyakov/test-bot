@@ -195,20 +195,34 @@ class PollAnalytics:
         total_polls = report_data['total_polls']
         avg_participation = report_data['avg_participation']
         
-        message = f"""📊 *ОТЧЕТ ПО ПОСЕЩАЕМОСТИ ЗА {period}*
+        message = f"""🏀 *ЕЖЕМЕСЯЧНЫЙ ОТЧЕТ ПО ПОСЕЩАЕМОСТИ*
 
-🏀 *Общая статистика:*
+📅 *Период:* {period}
+
+📊 *ОБЩАЯ СТАТИСТИКА:*
 • Всего тренировок: {total_polls}
 • Среднее участие: {avg_participation} человек
-• Топ-10 игроков по посещаемости:
+• Явка: {round((avg_participation / 8) * 100, 1)}% (из 8 игроков)
+
+🏆 *ТОП-5 ИГРОКОВ ПО ПОСЕЩАЕМОСТИ:*
 
 """
         
-        # Добавляем топ игроков
+        # Добавляем топ игроков с более детальной информацией
         for i, player in enumerate(report_data['player_stats'][:5], 1):
-            message += f"{i}. {player['player_name']}: {player['attendance_rate']}% ({player['attended']}/{player['total_polls']})\n"
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+            attendance_emoji = "🔥" if player['attendance_rate'] >= 80 else "👍" if player['attendance_rate'] >= 60 else "📊"
+            
+            message += f"{medal} {player['player_name']} {attendance_emoji}\n"
+            message += f"   Посещаемость: {player['attendance_rate']}% ({player['attended']}/{player['total_polls']})\n"
+            message += f"   Пропустил: {player['skipped']} | Не уверен: {player['maybe']} | Опоздал: {player['late']}\n\n"
         
-        message += "\n📈 *Детальная статистика доступна в файлах проекта*"
+        message += """📈 *АНАЛИТИКА:*
+• Посещаемость рассчитывается как: (Посетил + Опоздал) / Всего тренировок
+• Игроки с посещаемостью ≥80% считаются самыми стабильными
+
+💾 *Полная статистика доступна в файлах проекта*
+"""
         
         return message
 
