@@ -1,5 +1,8 @@
 name: Simple Basketball Bot
 
+permissions:
+  contents: write
+
 on:
   schedule:
     # Опросы: понедельник и среда в 8:00 UTC (11:00 МСК)

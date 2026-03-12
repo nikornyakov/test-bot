@@ -1,5 +1,9 @@
 name: Analytics and Reports
 
+permissions:
+  contents: write
+  pull-requests: write
+
 on:
   schedule:
     # Еженедельный отчет по посещаемости - каждое воскресение в 20:00 МСК

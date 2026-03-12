@@ -1,5 +1,8 @@
 name: Send Welcome Message
 
+permissions:
+  contents: write
+
 on:
   schedule:
     # Суббота в 14:00 UTC (17:00 по Москве)
