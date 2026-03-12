@@ -91,65 +91,143 @@ class PollAnalytics:
         return sorted(result, key=lambda x: x.date)
     
     def calculate_player_stats(self, days_back: int = 30) -> List[PlayerStats]:
-        """Рассчитать статистику игроков"""
-        polls = self.load_all_polls()
-        player_stats = {}
-        
-        # Фильтруем опросы за последние дни
-        cutoff_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
-        
-        for poll_data in polls.values():
-            if poll_data['date'] < cutoff_date:
-                continue
+        """Рассчитать статистику игроков за период"""
+        try:
+            cutoff_date = datetime.now() - timedelta(days=days_back)
+            polls = self.get_polls_by_date_range(cutoff_date.strftime('%Y-%m-%d'), datetime.now().strftime('%Y-%m-%d'))
+            
+            player_stats = {}
+            
+            for poll_data in polls:
+                poll_dict = asdict(poll_data)
+                if poll_dict['date'] < cutoff_date.strftime('%Y-%m-%d'):
+                    continue
                 
-            # Анализируем голоса
-            for option, count in poll_data['votes'].items():
-                # Это упрощенный подход - в реальности нужно получать ID игроков
-                # Для демонстрации используем опции как идентификаторы
-                player_id = option
-                if player_id not in player_stats:
-                    player_stats[player_id] = {
-                        'player_id': player_id,
-                        'player_name': option,
-                        'total_polls': 0,
-                        'attended': 0,
-                        'skipped': 0,
-                        'maybe': 0,
-                        'late': 0
-                    }
+                # Анализируем голоса РЕАЛЬНЫХ игроков из списка voters
+                voters = poll_dict.get('voters', [])
+                votes = poll_dict.get('votes', {})
                 
-                player_stats[player_id]['total_polls'] += 1
+                # Создаем соответствие между вариантами ответов и количеством голосов
+                vote_options = []
+                for option, count in votes.items():
+                    vote_options.extend([option] * count)
                 
-                if 'Буду' in option:
-                    player_stats[player_id]['attended'] += count
-                elif 'Не смогу' in option:
-                    player_stats[player_id]['skipped'] += count
-                elif 'Еще не знаю' in option:
-                    player_stats[player_id]['maybe'] += count
-                elif 'Опоздать' in option:
-                    player_stats[player_id]['late'] += count
-        
-        # Рассчитываем процент посещаемости
-        result = []
-        for stats in player_stats.values():
-            total = stats['total_polls']
-            if total > 0:
-                attendance_rate = (stats['attended'] + stats['late']) / total * 100
-            else:
-                attendance_rate = 0
-                
-            result.append(PlayerStats(
-                player_id=stats['player_id'],
-                player_name=stats['player_name'],
-                total_polls=stats['total_polls'],
-                attended=stats['attended'],
-                skipped=stats['skipped'],
-                maybe=stats['maybe'],
-                late=stats['late'],
-                attendance_rate=round(attendance_rate, 1)
-            ))
-        
-        return sorted(result, key=lambda x: x.attendance_rate, reverse=True)
+                # Распределяем голоса между реальными игроками
+                for i, voter_id in enumerate(voters):
+                    if i < len(vote_options):
+                        option = vote_options[i]
+                        player_name = self._get_player_name(voter_id, option)
+                        
+                        if player_name not in player_stats:
+                            player_stats[player_name] = {
+                                'player_id': voter_id,
+                                'player_name': player_name,
+                                'total_polls': 0,
+                                'attended': 0,
+                                'skipped': 0,
+                                'maybe': 0,
+                                'late': 0
+                            }
+                        
+                        player_stats[player_name]['total_polls'] += 1
+                        
+                        if 'Буду' in option:
+                            player_stats[player_name]['attended'] += 1
+                        elif 'Не смогу' in option:
+                            player_stats[player_name]['skipped'] += 1
+                        elif 'Еще не знаю' in option:
+                            player_stats[player_name]['maybe'] += 1
+                        elif 'Опоздать' in option:
+                            player_stats[player_name]['late'] += 1
+            
+            # Если нет данных о голосах, используем упрощенный подход
+            if not player_stats:
+                self.logger.warning("Нет данных о голосах игроков, используем упрощенный подход")
+                for poll_data in polls:
+                    poll_dict = asdict(poll_data)
+                    if poll_dict['date'] < cutoff_date.strftime('%Y-%m-%d'):
+                        continue
+                        
+                    for option, count in poll_dict['votes'].items():
+                        player_id = option
+                        if player_id not in player_stats:
+                            player_stats[player_id] = {
+                                'player_id': player_id,
+                                'player_name': option,
+                                'total_polls': 0,
+                                'attended': 0,
+                                'skipped': 0,
+                                'maybe': 0,
+                                'late': 0
+                            }
+                        
+                        player_stats[player_id]['total_polls'] += 1
+                        
+                        if 'Буду' in option:
+                            player_stats[player_id]['attended'] += count
+                        elif 'Не смогу' in option:
+                            player_stats[player_id]['skipped'] += count
+                        elif 'Еще не знаю' in option:
+                            player_stats[player_id]['maybe'] += count
+                        elif 'Опоздать' in option:
+                            player_stats[player_id]['late'] += count
+            
+            # Рассчитываем процент посещаемости и создаем объекты PlayerStats
+            result = []
+            for player_data in player_stats.values():
+                if player_data['total_polls'] > 0:
+                    attendance_rate = ((player_data['attended'] + player_data['late']) / 
+                                     player_data['total_polls']) * 100
+                    
+                    result.append(PlayerStats(
+                        player_id=player_data['player_id'],
+                        player_name=player_data['player_name'],
+                        total_polls=player_data['total_polls'],
+                        attended=player_data['attended'],
+                        skipped=player_data['skipped'],
+                        maybe=player_data['maybe'],
+                        late=player_data['late'],
+                        attendance_rate=round(attendance_rate, 1)
+                    ))
+            
+            return sorted(result, key=lambda x: x.attendance_rate, reverse=True)
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка при расчете статистики игроков: {e}")
+            return []
+    
+    def _get_player_name(self, voter_id: str, fallback_name: str = None) -> str:
+        """Получить имя игрока по его ID"""
+        try:
+            # Здесь можно добавить логику для получения реальных имен
+            # из Telegram API или из кэша пользователей
+            
+            # Проверяем, есть ли у нас информация об этом пользователе
+            user_info = self._get_cached_user_info(voter_id)
+            if user_info and 'first_name' in user_info:
+                name = user_info['first_name']
+                if 'last_name' in user_info and user_info['last_name']:
+                    name += f" {user_info['last_name']}"
+                return name
+            
+            # Если нет информации, используем ID или fallback
+            return fallback_name or f"Player_{voter_id[:8]}"
+            
+        except Exception:
+            return fallback_name or f"Player_{voter_id[:8]}"
+    
+    def _get_cached_user_info(self, user_id: str) -> dict:
+        """Получить кэшированную информацию о пользователе"""
+        try:
+            # Попытка загрузить из файла с кэшем пользователей
+            cache_file = self.data_dir / "user_cache.json"
+            if cache_file.exists():
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cache = json.load(f)
+                    return cache.get(user_id, {})
+        except Exception:
+            pass
+        return {}
     
     def generate_monthly_report(self, year: int, month: int) -> Dict[str, Any]:
         """Сгенерировать месячный отчет"""

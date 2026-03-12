@@ -1,0 +1,42 @@
+{
+  "123456789": {
+    "first_name": "Иван",
+    "last_name": "Иванов",
+    "username": "ivanov"
+  },
+  "987654321": {
+    "first_name": "Петр",
+    "last_name": "Петров",
+    "username": "petrov"
+  },
+  "456789123": {
+    "first_name": "Сергей",
+    "last_name": "Сергеев",
+    "username": "sergeev"
+  },
+  "789123456": {
+    "first_name": "Андрей",
+    "last_name": "Андреев",
+    "username": "andreev"
+  },
+  "321654987": {
+    "first_name": "Дмитрий",
+    "last_name": "Дмитриев",
+    "username": "dmitriev"
+  },
+  "654987321": {
+    "first_name": "Алексей",
+    "last_name": "Алексеев",
+    "username": "alekseev"
+  },
+  "147258369": {
+    "first_name": "Михаил",
+    "last_name": "Михайлов",
+    "username": "mikhailov"
+  },
+  "369258147": {
+    "first_name": "Николай",
+    "last_name": "Николаев",
+    "username": "nikolaev"
+  }
+}
