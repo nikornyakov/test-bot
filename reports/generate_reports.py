@@ -11,15 +11,6 @@ load_dotenv()
 # Добавляем родительскую директорию в путь для импортов
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Для импорта при запуске как модуля
-try:
-    from .poll_tracker import PollTracker
-    from .poll_analytics import PollAnalytics, create_mock_poll_result
-except ImportError:
-    # Для импорта при запуска как скрипта
-    from poll_tracker import PollTracker
-    from poll_analytics import PollAnalytics, create_mock_poll_result
-
 # Импортируем простую аналитику
 try:
     from .simple_analytics import SimpleAnalytics
