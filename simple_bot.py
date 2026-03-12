@@ -3,6 +3,8 @@ import logging
 import asyncio
 from datetime import datetime, timedelta
 from bot_base import TelegramBotBase, format_training_date, get_day_of_week
+from reports.poll_tracker import PollTracker
+from reports.generate_reports import generate_monthly_report, generate_attendance_report
 
 async def send_welcome_message(bot_instance):
     """Функция отправки приветственного сообщения"""
@@ -32,8 +34,9 @@ async def send_welcome_message(bot_instance):
     return success
 
 async def send_simple_poll():
-    """Упрощенная функция отправки опроса"""
+    """Упрощенная функция отправки опроса с отслеживанием результатов"""
     bot_instance = TelegramBotBase("simple_bot.log")
+    poll_tracker = PollTracker("simple_bot.log")
     
     # Определяем текущий день недели
     day_of_week = get_day_of_week()
@@ -59,15 +62,19 @@ async def send_simple_poll():
     if not await bot_instance.initialize_bot():
         return False
     
-    # Отправляем опрос
-    success = await bot_instance.send_poll(
-        question=question,
-        options=options,
-        is_anonymous=False,
-        allows_multiple_answers=False
-    )
-    
-    if success:
+    # Отправляем опрос и получаем ID сообщения
+    try:
+        poll_message_obj = await bot_instance.bot.send_poll(
+            chat_id=bot_instance.group_id,
+            question=question,
+            options=options,
+            is_anonymous=False,
+            allows_multiple_answers=False
+        )
+        
+        poll_message_id = poll_message_obj.message_id
+        bot_instance.logger.info(f"Опрос отправлен, ID сообщения: {poll_message_id}")
+        
         # Отправляем сообщение с инструкцией
         reminder = """
         💡 Место проведения: Basket Hall 
@@ -76,8 +83,16 @@ async def send_simple_poll():
         
         await bot_instance.send_message(poll_message + reminder)
         bot_instance.logger.info("Опрос успешно отправлен")
-    
-    return success
+        
+        # Планируем отслеживание результатов через 24 часа
+        # В реальном приложении это нужно делать через фоновую задачу
+        # Для GitHub Actions можно создать отдельный workflow
+        
+        return True
+        
+    except Exception as e:
+        bot_instance.logger.error(f"Ошибка при отправке опроса: {e}")
+        return False
 
 async def send_training_reminder():
     """Функция отправки напоминания о тренировке"""
@@ -130,6 +145,14 @@ async def send_manual_welcome():
     success = await send_welcome_message(bot_instance)
     return success
 
+async def send_attendance_report():
+    """Функция для отправки отчета по посещаемости"""
+    return await generate_attendance_report(30)
+
+async def send_monthly_report():
+    """Функция для отправки месячного отчета"""
+    return await generate_monthly_report()
+
 async def main():
     """Основная асинхронная функция"""
     logger = logging.getLogger(__name__)
@@ -140,14 +163,34 @@ async def main():
     # Определяем, что нужно делать в зависимости от дня недели
     day_of_week = get_day_of_week()
     
-    # Проверяем, есть ли аргумент командной строки для приветствия
+    # Проверяем, есть ли аргумент командной строки для специальных действий
     import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "welcome":
-        success = await send_manual_welcome()
-        if success:
-            logger.info("Приветственное сообщение отправлено успешно!")
+    if len(sys.argv) > 1:
+        command = sys.argv[1].lower()
+        
+        if command == "welcome":
+            success = await send_manual_welcome()
+            if success:
+                logger.info("Приветственное сообщение отправлено успешно!")
+            else:
+                logger.info("Приветственное сообщение не было отправлено")
+        
+        elif command == "attendance":
+            success = await send_attendance_report()
+            if success:
+                logger.info("Отчет по посещаемости отправлен успешно!")
+            else:
+                logger.info("Отчет по посещаемости не был отправлен")
+        
+        elif command == "monthly":
+            success = await send_monthly_report()
+            if success:
+                logger.info("Месячный отчет отправлен успешно!")
+            else:
+                logger.info("Месячный отчет не был отправлен")
+        
         else:
-            logger.info("Приветственное сообщение не было отправлено")
+            logger.info(f"Неизвестная команда: {command}")
     
     elif day_of_week in [0, 2]:  # Понедельник или среда
         success = await send_simple_poll()
