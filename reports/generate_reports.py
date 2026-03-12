@@ -16,65 +16,123 @@ try:
     from .poll_tracker import PollTracker
     from .poll_analytics import PollAnalytics, create_mock_poll_result
 except ImportError:
-    # Для импорта при запуске как скрипта
+    # Для импорта при запуска как скрипта
     from poll_tracker import PollTracker
     from poll_analytics import PollAnalytics, create_mock_poll_result
+
+# Импортируем простую аналитику
+try:
+    from .simple_analytics import SimpleAnalytics
+except ImportError:
+    from simple_analytics import SimpleAnalytics
+
+# Импортируем базовый класс бота
+try:
+    from .bot_base import TelegramBotBase
+except ImportError:
+    from bot_base import TelegramBotBase
 
 
 async def generate_monthly_report(year: int = None, month: int = None):
     """Генерация и отправка месячного отчета"""
-    tracker = PollTracker()
+    analytics = SimpleAnalytics()
+    bot = TelegramBotBase()
     
-    if not await tracker.initialize_bot():
+    if not await bot.initialize_bot():
         print("Ошибка инициализации бота")
         return False
     
-    success = await tracker.send_monthly_report(year, month)
+    # Генерируем отчет
+    report_data = analytics.generate_yearly_report(year)
+    message = analytics.format_report_message(report_data)
+    
+    # Отправляем сообщение
+    success = await bot.send_message(message, parse_mode='Markdown')
+    
+    if success:
+        print(f"Месячный отчет за {year or datetime.now().year}-{month or datetime.now().month} отправлен")
+    else:
+        print("Ошибка отправки отчета")
+    
     return success
 
 
 async def generate_attendance_report(days: int = 30):
     """Генерация и отправка отчета по посещаемости"""
-    tracker = PollTracker()
+    analytics = SimpleAnalytics()
+    bot = TelegramBotBase()
     
-    if not await tracker.initialize_bot():
+    if not await bot.initialize_bot():
         print("Ошибка инициализации бота")
         return False
     
-    success = await tracker.send_attendance_stats(days)
+    # Генерируем отчет
+    report_data = analytics.generate_yearly_report(datetime.now().year)
+    message = analytics.format_report_message(report_data)
+    
+    # Отправляем сообщение
+    success = await bot.send_message(message, parse_mode='Markdown')
+    
+    if success:
+        print(f"Отчет по посещаемости за последние {days} дней отправлен")
+    else:
+        print("Ошибка отправки отчета")
+    
     return success
 
 
 async def generate_yearly_report(year: int = None):
-    """Генерация и отправка годового отчета"""
-    tracker = PollTracker()
-    
-    if not await tracker.initialize_bot():
-        print("Ошибка инициализации бота")
+    """Генерация и отправка годового отчета с простой аналитикой"""
+    try:
+        # Используем простую аналитику
+        analytics = SimpleAnalytics()
+        bot = TelegramBotBase()
+        
+        if not await bot.initialize_bot():
+            print("Ошибка инициализации бота")
+            return False
+        
+        # Генерируем отчет
+        report_data = analytics.generate_yearly_report(year)
+        message = analytics.format_report_message(report_data)
+        
+        # Отправляем сообщение
+        success = await bot.send_message(message, parse_mode='Markdown')
+        
+        if success:
+            print(f"Годовой отчет за {year or datetime.now().year} отправлен")
+        else:
+            print("Ошибка отправки отчета")
+        
+        return success
+        
+    except Exception as e:
+        print(f"Ошибка при генерации годового отчета: {e}")
         return False
-    
-    success = await tracker.send_yearly_report(year)
-    return success
 
 
 async def generate_full_report():
-    """Генерация полного отчета (месячный + посещаемость)"""
-    tracker = PollTracker()
+    """Генерация полного отчета"""
+    analytics = SimpleAnalytics()
+    bot = TelegramBotBase()
     
-    if not await tracker.initialize_bot():
+    if not await bot.initialize_bot():
         print("Ошибка инициализации бота")
         return False
     
-    # Отправляем месячный отчет
-    month_success = await tracker.send_monthly_report()
+    # Генерируем отчет
+    report_data = analytics.generate_yearly_report(datetime.now().year)
+    message = analytics.format_report_message(report_data)
     
-    # Ждем немного между сообщениями
-    await asyncio.sleep(2)
+    # Отправляем сообщение
+    success = await bot.send_message(message, parse_mode='Markdown')
     
-    # Отправляем статистику посещаемости
-    attendance_success = await tracker.send_attendance_stats(30)
+    if success:
+        print("Полный отчет отправлен")
+    else:
+        print("Ошибка отправки отчета")
     
-    return month_success and attendance_success
+    return success
 
 
 async def generate_test_data():
@@ -126,36 +184,26 @@ async def main():
     
     command = sys.argv[1].lower()
     
-    try:
-        if command == "monthly":
-            year = int(sys.argv[2]) if len(sys.argv) > 2 else None
-            month = int(sys.argv[3]) if len(sys.argv) > 3 else None
-            success = await generate_monthly_report(year, month)
-            print(f"Месячный отчет {'отправлен' if success else 'не отправлен'}")
-        
-        elif command == "attendance":
-            days = int(sys.argv[2]) if len(sys.argv) > 2 else 30
-            success = await generate_attendance_report(days)
-            print(f"Отчет по посещаемости за {days} дней {'отправлен' if success else 'не отправлен'}")
-        
-        elif command == "yearly":
-            year = int(sys.argv[2]) if len(sys.argv) > 2 else None
-            success = await generate_yearly_report(year)
-            print(f"Годовой отчет за {year if year else 'текущий год'} {'отправлен' if success else 'не отправлен'}")
-        
-        elif command == "full":
-            success = await generate_full_report()
-            print(f"Полный отчет {'отправлен' if success else 'не отправлен'}")
-        
-        elif command == "test_data":
-            await generate_test_data()
-        
-        else:
-            print(f"Неизвестная команда: {command}")
+    if command == "monthly":
+        year = int(sys.argv[2]) if len(sys.argv) > 2 else None
+        month = int(sys.argv[3]) if len(sys.argv) > 3 else None
+        success = await generate_monthly_report(year, month)
+    elif command == "attendance":
+        days = int(sys.argv[2]) if len(sys.argv) > 2 else 30
+        success = await generate_attendance_report(days)
+    elif command == "yearly":
+        year = int(sys.argv[2]) if len(sys.argv) > 2 else None
+        success = await generate_yearly_report(year)
+    elif command == "full":
+        success = await generate_full_report()
+    else:
+        print(f"Неизвестная команда: {command}")
+        success = False
     
-    except Exception as e:
-        logger.error(f"Ошибка при выполнении команды {command}: {e}")
-        print(f"Ошибка: {e}")
+    if success:
+        print("✅ Отчет успешно отправлен")
+    else:
+        print("❌ Ошибка при отправке отчета")
 
 
 if __name__ == "__main__":

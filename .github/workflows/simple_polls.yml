@@ -1,0 +1,101 @@
+name: Simple Poll Collection and Reports
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    # Ежедневный сбор данных в 20:00 МСК
+    - cron: '0 17 * * *'
+    # Еженедельный отчет в воскресенье 20:00 МСК
+    - cron: '0 17 * * 0'
+    # Месячный отчет 1 числа в 10:00 МСК
+    - cron: '0 7 1 * *'
+    # Годовой отчет 1 января в 12:00 МСК
+    - cron: '0 9 1 1 *'
+  
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Действие'
+        required: true
+        default: 'collect'
+        type: choice
+        options:
+        - collect
+        - report_weekly
+        - report_monthly
+        - report_yearly
+        - report_test
+      year:
+        description: 'Год для отчета'
+        required: false
+        default: '2025'
+        type: string
+
+jobs:
+  collect-and-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Setup environment variables
+      run: |
+        echo "BOT_TOKEN=$BOT_TOKEN" >> .env
+        echo "GROUP_ID=$GROUP_ID" >> .env
+      env:
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        GROUP_ID: ${{ secrets.GROUP_ID }}
+        
+    - name: Collect poll data
+      run: python3 simple_poll_collector.py
+      
+    - name: Generate report based on action
+      run: |
+        case "${{ github.event.inputs.action || 'collect' }}" in
+          "collect")
+            echo "✅ Данные собраны"
+            ;;
+          "report_weekly")
+            python3 reports/generate_reports.py weekly
+            ;;
+          "report_monthly")
+            python3 reports/generate_reports.py monthly
+            ;;
+          "report_yearly")
+            python3 reports/generate_reports.py yearly ${{ github.event.inputs.year || '2025' }}
+            ;;
+          "report_test")
+            python3 test_simple_system.py
+            ;;
+          *)
+            python3 reports/generate_reports.py yearly ${{ github.event.inputs.year || '2025' }}
+            ;;
+        esac
+        
+    - name: Upload reports data
+      uses: actions/upload-artifact@v4
+      with:
+        name: polls-data-${{ github.run_number }}
+        path: reports/
+        retention-days: 30
+        
+    - name: Commit and push data
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add reports/
+        git diff --staged --quiet || git commit -m "Update poll data - $(date +'%Y-%m-%d %H:%M')"
+        git push
