@@ -1,8 +1,0 @@
-# Ignore temporary files
-*.tmp
-*.temp
-*.log
-
-# Keep data files
-!polls.json
-!stats.json
