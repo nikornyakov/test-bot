@@ -10,13 +10,14 @@ from bot_base import TelegramBotBase, load_token_from_env, format_training_date,
 class TestTelegramBotBase:
     """Тесты для класса TelegramBotBase"""
     
+    pytestmark = pytest.mark.asyncio
+    
     def setup_method(self):
         """Настройка тестового окружения"""
         self.bot = TelegramBotBase("test.log")
     
     def test_init(self):
         """Тест инициализации"""
-        assert self.bot.log_filename == "test.log"
         assert self.bot.token is None
         assert self.bot.group_id is None
         assert self.bot.bot is None

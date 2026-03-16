@@ -82,6 +82,8 @@ class Config:
         messages = self.get_messages()
         welcome = messages.get('welcome', {})
         
+        venue_info = welcome.get('venue_info', '"Basket Hall" \nул. Салова, 57 корпус 5')
+        
         return f"""
 {welcome.get('title', 'Привет всем! Ваш бот с баскетбольными пожеланиями! 🏀')}
 
@@ -97,7 +99,7 @@ class Config:
 {welcome.get('stream_link', 'Смотрите трансляцию https://vk.com/nevabasket')}
 
 {welcome.get('venue_title', '📍 АДРЕС ЗАЛА:')}
-{welcome.get('venue_info', '"Basket Hall" \nул. Салова, 57 корпус 5')}
+{venue_info}
 
 {welcome.get('closing', 'Продуктивных выходных!❄️🏀')}
         """

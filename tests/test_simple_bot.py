@@ -6,6 +6,8 @@ import os
 from unittest.mock import patch, AsyncMock, Mock
 from simple_bot import send_welcome_message, send_simple_poll, send_training_reminder
 
+pytestmark = pytest.mark.asyncio
+
 
 class TestSimpleBot:
     """Тесты для основных функций simple_bot.py"""
@@ -86,11 +88,23 @@ class TestSimpleBot:
         assert result is True
         mock_bot.send_message.assert_called_once()
         
-        # Проверяем, что сообщение содержит ожидаемые элементы
+        # Проверяем, что сообщение содержит ожидаемые элементы из нового приветствия
         call_args = mock_bot.send_message.call_args
-        assert call_args[1]['parse_mode'] == 'Markdown'
-        assert 'Привет всем! Ваш бот с баскетбольными пожеланиями!' in call_args[1]['text']
-        assert 'ВТОРНИК : 🏀 *19:00-20:30*' in call_args[1]['text']
+        # call_args это tuple (positional_args, keyword_args)
+        positional_args, keyword_args = call_args
+        # В функции send_message используется positional аргумент для текста
+        message_text = positional_args[0]  # Первый позиционный аргумент - текст
+        assert keyword_args['parse_mode'] == 'Markdown'
+        assert 'Добро пожаловать в нашу баскетбольную команду!' in message_text
+        assert 'НАШИ ТРЕНИРОВКИ:' in message_text
+        assert '**ВТОРНИК**: 19:00-20:30' in message_text
+        assert '**ЧЕТВЕРГ**: 19:00-20:30' in message_text
+        assert 'Basket Hall' in message_text
+        assert 'ул. Салова, 57 корпус 5' in message_text
+        assert 'Спортивная форма' in message_text
+        assert 'Кроссовки (не оставляющие следов на паркете)' in message_text
+        assert 'Вода' in message_text
+        assert 'Отличное настроение!' in message_text
     
     @patch('simple_bot.TelegramBotBase')
     @patch('simple_bot.get_day_of_week')
@@ -165,10 +179,12 @@ class TestSimpleBot:
         mock_bot.send_message.assert_called_once()
         
         # Проверяем содержание сообщения
-        message_call = mock_bot.send_message.call_args[1]
-        assert 'сегодня' in message_call['text']
-        assert 'Тренировка' in message_call['text']
-        assert 'Спортивную форму' in message_call['text']
+        call_args = mock_bot.send_message.call_args
+        positional_args, keyword_args = call_args
+        message_text = positional_args[0]  # Первый позиционный аргумент - текст
+        assert 'сегодня' in message_text
+        assert 'Тренировка' in message_text
+        assert 'Спортивную форму' in message_text
     
     @patch('simple_bot.TelegramBotBase')
     @patch('simple_bot.get_day_of_week')
@@ -183,8 +199,14 @@ class TestSimpleBot:
         result = await send_training_reminder()
         
         assert result is True
-        message_call = mock_bot.send_message.call_args[1]
-        assert 'сегодня' in message_call['text']
+        mock_bot.initialize_bot.assert_called_once()
+        mock_bot.send_message.assert_called_once()
+        
+        # Проверяем содержание сообщения
+        call_args = mock_bot.send_message.call_args
+        positional_args, keyword_args = call_args
+        message_text = positional_args[0]  # Первый позиционный аргумент - текст
+        assert 'сегодня' in message_text
     
     @patch('simple_bot.TelegramBotBase')
     @patch('simple_bot.get_day_of_week')
