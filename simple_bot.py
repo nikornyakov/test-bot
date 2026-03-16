@@ -5,6 +5,20 @@ import requests
 from datetime import datetime, timedelta
 from bot_base import TelegramBotBase, format_training_date, get_day_of_week
 
+def get_next_sunday_date():
+    """Возвращает дату ближайшего воскресенья в формате ДД.ММ.ГГГГ"""
+    now = datetime.now()
+    current_weekday = now.weekday()  # 0=пн, 6=вс
+    
+    if current_weekday == 6:  # Сегодня воскресенье
+        sunday_date = now
+    else:
+        # Дней до следующего воскресенья (6 - текущий день недели)
+        days_until_sunday = 6 - current_weekday
+        sunday_date = now + timedelta(days=days_until_sunday)
+    
+    return sunday_date.strftime("%d.%m.%Y")
+
 def get_weather_forecast(training_date):
     """Получает прогноз погоды от OpenWeatherMap для Санкт-Петербурга"""
     try:
@@ -31,34 +45,33 @@ def get_weather_forecast(training_date):
         
         data = response.json()
         
-        # Ищем прогноз на завтра (примерно в 13:00)
-        tomorrow_forecast = None
+        # Ищем прогноз на воскресенье (ближайшее)
+        target_date = datetime.strptime(training_date, "%d.%m.%Y")
+        
+        # Ищем прогноз на целевую дату (воскресенье)
+        target_forecast = None
         for item in data['list']:
-            # Конвертируем время в timestamp и проверяем завтрашний день в 13:00
-            forecast_time = item['dt']
-            forecast_dt = datetime.fromtimestamp(forecast_time)
-            tomorrow = datetime.now() + timedelta(days=1)
+            forecast_dt = datetime.fromtimestamp(item['dt'])
             
-            if (forecast_dt.date() == tomorrow.date() and 
+            if (forecast_dt.date() == target_date.date() and 
                 12 <= forecast_dt.hour <= 14):
-                tomorrow_forecast = item
+                target_forecast = item
                 break
         
-        if not tomorrow_forecast:
-            # Если не нашли точный прогноз, берем первый на завтра
+        if not target_forecast:
+            # Если не нашли точный прогноз, берем первый на воскресенье
             for item in data['list']:
                 forecast_dt = datetime.fromtimestamp(item['dt'])
-                tomorrow = datetime.now() + timedelta(days=1)
-                if forecast_dt.date() == tomorrow.date():
-                    tomorrow_forecast = item
+                if forecast_dt.date() == target_date.date():
+                    target_forecast = item
                     break
         
-        if not tomorrow_forecast:
+        if not target_forecast:
             return None
             
-        main = tomorrow_forecast['main']
-        weather = tomorrow_forecast['weather'][0]
-        wind = tomorrow_forecast['wind']
+        main = target_forecast['main']
+        weather = target_forecast['weather'][0]
+        wind = target_forecast['wind']
         
         temp = main['temp']
         condition = weather['description']
@@ -128,10 +141,11 @@ async def send_outdoor_poll():
     # Временно убираем проверку для тестирования
     # if day_of_week == 5:  # Суббота
     if True:  # Для тестирования - работает каждый день
-        training_date = format_training_date(1)
-        question = f"Тренировка на улице в воскресенье ({training_date}) в 13:13.\nКто будет?"
+        # Всегда используем воскресную дату для опроса
+        training_date = get_next_sunday_date()
+        question = f"Тренировка ({training_date}) в 13:13\nКто будет?"
         options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю", "⏰ Опоздаю"]
-        poll_message = f"Тренировка на улице в воскресенье ({training_date}) в 13:13. Кто будет?"
+        poll_message = f"Тренировка ({training_date}) в 13:13. Кто будет?"
         
         # Инициализируем бота
         if not await bot_instance.initialize_bot():
