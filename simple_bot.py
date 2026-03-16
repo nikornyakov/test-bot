@@ -25,7 +25,10 @@ def get_weather_forecast(training_date):
         # OpenWeatherMap API (нужен API ключ)
         api_key = os.getenv('OPENWEATHER_API_KEY')
         if not api_key:
+            logging.error("OPENWEATHER_API_KEY не установлен в переменных окружения")
             return None
+        
+        logging.info(f"Используется API ключ: {api_key[:10]}...")
             
         # Координаты Санкт-Петербурга
         lat, lon = 59.917913, 30.304852
@@ -40,13 +43,29 @@ def get_weather_forecast(training_date):
             'cnt': 8         # Прогноз на 24 часа (3-х часовые интервалы)
         }
         
+        logging.info(f"Запрос к API: {url} с параметрами lat={lat}, lon={lon}")
+        
         response = requests.get(url, params=params)
+        logging.info(f"Статус ответа API: {response.status_code}")
+        
+        if response.status_code == 401:
+            logging.error("Ошибка 401: Неверный API ключ OpenWeatherMap")
+            return None
+        elif response.status_code == 404:
+            logging.error("Ошибка 404: Не найдены данные для указанных координат")
+            return None
+        elif response.status_code != 200:
+            logging.error(f"Ошибка API: {response.status_code} - {response.text}")
+            return None
+            
         response.raise_for_status()
         
         data = response.json()
+        logging.info(f"Получен ответ от API: {len(data.get('list', []))} прогнозов")
         
         # Ищем прогноз на воскресенье (ближайшее)
         target_date = datetime.strptime(training_date, "%d.%m.%Y")
+        logging.info(f"Ищем прогноз на дату: {target_date.date()}")
         
         # Ищем прогноз на целевую дату (воскресенье)
         target_forecast = None
@@ -56,6 +75,7 @@ def get_weather_forecast(training_date):
             if (forecast_dt.date() == target_date.date() and 
                 12 <= forecast_dt.hour <= 14):
                 target_forecast = item
+                logging.info(f"Найден прогноз на {forecast_dt} в 12-14 часов")
                 break
         
         if not target_forecast:
@@ -64,9 +84,11 @@ def get_weather_forecast(training_date):
                 forecast_dt = datetime.fromtimestamp(item['dt'])
                 if forecast_dt.date() == target_date.date():
                     target_forecast = item
+                    logging.info(f"Найден прогноз на {forecast_dt} (любое время)")
                     break
         
         if not target_forecast:
+            logging.error(f"Прогноз на дату {target_date.date()} не найден в данных API")
             return None
             
         main = target_forecast['main']
@@ -94,8 +116,12 @@ def get_weather_forecast(training_date):
         else:
             weather_info += "\n☀️ Отличная погода для баскетбола!"
             
+        logging.info(f"Прогноз погоды успешно сформирован для {training_date}")
         return weather_info
         
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Ошибка запроса к OpenWeatherMap API: {e}")
+        return None
     except Exception as e:
         logging.error(f"Ошибка получения прогноза погоды: {e}")
         return None
