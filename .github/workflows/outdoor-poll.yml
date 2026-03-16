@@ -26,8 +26,8 @@ jobs:
         
     - name: Send outdoor poll
       env:
-        BOT_TOKEN: ${{ secrets.OUTDOOR_BOT_TOKEN }}
-        GROUP_ID: ${{ secrets.OUTDOOR_GROUP_ID }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        GROUP_ID: ${{ secrets.GROUP_ID }}
         OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
       run: |
         python simple_bot.py outdoor
