@@ -127,7 +127,9 @@ async def send_outdoor_poll():
     day_of_week = get_day_of_week()
     
     # Отправляем опрос только в субботу (для воскресной тренировки)
-    if day_of_week == 5:  # Суббота
+    # Временно убираем проверку для тестирования
+    # if day_of_week == 5:  # Суббота
+    if True:  # Для тестирования - работает каждый день
         training_date = format_training_date(1)
         question = f"Баскетбол на улице в воскресенье ({training_date}) 🏀"
         options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю", "⏰ Опоздаю"]
@@ -170,9 +172,9 @@ async def send_outdoor_poll():
             bot_instance.logger.info("Опрос о тренировке на улице отправлен с прогнозом погоды")
         
         return success
-    else:
-        bot_instance.logger.info(f"Сегодня не суббота, опрос о тренировке на улице не требуется")
-        return False
+    # else:
+    #     bot_instance.logger.info(f"Сегодня не суббота, опрос о тренировке на улице не требуется")
+    #     return False
 
 async def send_simple_poll():
     """Упрощенная функция отправки опроса"""
