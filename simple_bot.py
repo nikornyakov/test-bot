@@ -6,80 +6,78 @@ from datetime import datetime, timedelta
 from bot_base import TelegramBotBase, format_training_date, get_day_of_week
 
 def get_weather_forecast():
-    """Получает прогноз погоды от Яндекс.Погоды для Санкт-Петербурга"""
+    """Получает прогноз погоды от OpenWeatherMap для Санкт-Петербурга"""
     try:
-        # Яндекс.Погода API (нужен API ключ)
-        api_key = os.getenv('YANDEX_WEATHER_API_KEY')
+        # OpenWeatherMap API (нужен API ключ)
+        api_key = os.getenv('OPENWEATHER_API_KEY')
         if not api_key:
             return None
             
         # Координаты Санкт-Петербурга
         lat, lon = 59.9343, 30.3351
         
-        url = f"https://api.weather.yandex.ru/v2/forecast"
-        headers = {
-            'X-Yandex-API-Key': api_key
-        }
+        url = f"https://api.openweathermap.org/data/2.5/forecast"
         params = {
             'lat': lat,
             'lon': lon,
-            'limit': 2,  # Сегодня и завтра
-            'hours': False
+            'appid': api_key,
+            'units': 'metric',  # Цельсий
+            'lang': 'ru',    # Русский язык
+            'cnt': 8         # Прогноз на 24 часа (3-х часовые интервалы)
         }
         
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, params=params)
         response.raise_for_status()
         
         data = response.json()
         
-        # Получаем прогноз на завтра (для воскресной тренировки)
-        tomorrow = data['forecasts'][1]
+        # Ищем прогноз на завтра (примерно в 13:00)
+        tomorrow_forecast = None
+        for item in data['list']:
+            # Конвертируем время в timestamp и проверяем завтрашний день в 13:00
+            forecast_time = item['dt']
+            forecast_dt = datetime.fromtimestamp(forecast_time)
+            tomorrow = datetime.now() + timedelta(days=1)
+            
+            if (forecast_dt.date() == tomorrow.date() and 
+                12 <= forecast_dt.hour <= 14):
+                tomorrow_forecast = item
+                break
         
-        temp = tomorrow['parts']['day']['temp_avg']
-        condition = tomorrow['parts']['day']['condition']
-        wind_speed = tomorrow['parts']['day']['wind_speed']
-        precipitation = tomorrow['parts']['day']['prec_mm']
+        if not tomorrow_forecast:
+            # Если не нашли точный прогноз, берем первый на завтра
+            for item in data['list']:
+                forecast_dt = datetime.fromtimestamp(item['dt'])
+                tomorrow = datetime.now() + timedelta(days=1)
+                if forecast_dt.date() == tomorrow.date():
+                    tomorrow_forecast = item
+                    break
         
-        # Русские названия условий погоды
-        condition_map = {
-            'clear': 'ясно',
-            'partly-cloudy': 'малооблачно',
-            'cloudy': 'облачно с прояснениями',
-            'overcast': 'пасмурно',
-            'drizzle': 'морось',
-            'light-rain': 'небольшой дождь',
-            'rain': 'дождь',
-            'moderate-rain': 'умеренно сильный дождь',
-            'heavy-rain': 'сильный дождь',
-            'continuous-heavy-rain': 'проливной дождь',
-            'showers': 'ливень',
-            'wet-snow': 'мокрый снег',
-            'light-snow': 'небольшой снег',
-            'snow': 'снег',
-            'snow-showers': 'снегопад',
-            'hail': 'град',
-            'thunderstorm': 'гроза',
-            'thunderstorm-with-rain': 'дождь с грозой',
-            'thunderstorm-with-hail': 'гроза с градом'
-        }
+        if not tomorrow_forecast:
+            return None
+            
+        main = tomorrow_forecast['main']
+        weather = tomorrow_forecast['weather'][0]
+        wind = tomorrow_forecast['wind']
         
-        condition_ru = condition_map.get(condition, condition)
+        temp = main['temp']
+        condition = weather['description']
+        wind_speed = wind['speed']
+        humidity = main['humidity']
         
         weather_info = f"🌤️ *Прогноз на завтра:*\n"
-        weather_info += f"🌡️ Температура: {temp}°C\n"
-        weather_info += f"☁️ Состояние: {condition_ru}\n"
-        weather_info += f"💨 Ветер: {wind_speed} м/с\n"
+        weather_info += f"🌡️ Температура: {temp:.1f}°C\n"
+        weather_info += f"☁️ Состояние: {condition.capitalize()}\n"
+        weather_info += f"💨 Ветер: {wind_speed:.1f} м/с\n"
+        weather_info += f"💧 Влажность: {humidity}%\n"
         
-        if precipitation > 0:
-            weather_info += f"🌧️ Осадки: {precipitation} мм\n"
-            
         # Добавляем рекомендации
         if temp < 5:
             weather_info += "\n🧥 Рекомендация: теплая одежда!"
         elif temp < 15:
-            weather_info += "\n 👕 Рекомендация: легкая куртка"
-        elif condition in ['rain', 'light-rain', 'moderate-rain', 'heavy-rain']:
-            weather_info += "\n☔ Рекомендация: дождевик!"
+            weather_info += "\n👕 Рекомендация: легкая куртка"
+        elif 'дождь' in condition.lower() or 'снег' in condition.lower():
+            weather_info += "\n☔ Рекомендация: непромокаемая одежда!"
         else:
             weather_info += "\n☀️ Отличная погода для баскетбола!"
             

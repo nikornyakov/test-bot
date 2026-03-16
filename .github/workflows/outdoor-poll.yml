@@ -28,7 +28,7 @@ jobs:
       env:
         BOT_TOKEN: ${{ secrets.OUTDOOR_BOT_TOKEN }}
         GROUP_ID: ${{ secrets.OUTDOOR_GROUP_ID }}
-        YANDEX_WEATHER_API_KEY: ${{ secrets.YANDEX_WEATHER_API_KEY }}
+        OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
       run: |
         python simple_bot.py outdoor
         
