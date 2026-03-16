@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, timedelta
 from bot_base import TelegramBotBase, format_training_date, get_day_of_week
 
-def get_weather_forecast():
+def get_weather_forecast(training_date):
     """Получает прогноз погоды от OpenWeatherMap для Санкт-Петербурга"""
     try:
         # OpenWeatherMap API (нужен API ключ)
@@ -65,7 +65,7 @@ def get_weather_forecast():
         wind_speed = wind['speed']
         humidity = main['humidity']
         
-        weather_info = f"🌤️ *Прогноз на завтра:*\n"
+        weather_info = f"🌤️ *Прогноз на {training_date}:*\n"
         weather_info += f"🌡️ Температура: {temp:.1f}°C\n"
         weather_info += f"☁️ Состояние: {condition.capitalize()}\n"
         weather_info += f"💨 Ветер: {wind_speed:.1f} м/с\n"
@@ -138,7 +138,7 @@ async def send_outdoor_poll():
             return False
         
         # Получаем прогноз погоды
-        weather_info = get_weather_forecast()
+        weather_info = get_weather_forecast(training_date)
         
         # Отправляем опрос
         success = await bot_instance.send_poll(
