@@ -170,7 +170,8 @@ async def send_outdoor_poll():
         # Отправляем опрос только если есть прогноз погоды
         if not weather_info:
             bot_instance.logger.error(f"Прогноз погоды недоступен после {max_retries} попыток, опрос не отправлен")
-            return False
+            await bot_instance.send_message("❌ Опрос о тренировке не отправлен: прогноз погоды недоступен")
+            return False  # Явно возвращаем код ошибки
         
         # Отправляем опрос
         success = await bot_instance.send_poll(
