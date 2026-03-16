@@ -131,7 +131,7 @@ async def send_outdoor_poll():
         training_date = format_training_date(1)
         question = f"Баскетбол на улице в воскресенье ({training_date}) 🏀"
         options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю", "⏰ Опоздаю"]
-        poll_message = f"Тренировка на улице в воскресенье ({training_date}) в 13:00. Кто будет?"
+        poll_message = f"Тренировка на улице в воскресенье ({training_date}) в 13:13. Кто будет?"
         
         # Инициализируем бота
         if not await bot_instance.initialize_bot():
