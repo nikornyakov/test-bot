@@ -129,7 +129,7 @@ async def send_outdoor_poll():
     # if day_of_week == 5:  # Суббота
     if True:  # Для тестирования - работает каждый день
         training_date = format_training_date(1)
-        question = f"Баскетбол на улице в воскресенье ({training_date}) 🏀"
+        question = f"Тренировка на улице в воскресенье ({training_date}) в 13:13.\nКто будет?"
         options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю", "⏰ Опоздаю"]
         poll_message = f"Тренировка на улице в воскресенье ({training_date}) в 13:13. Кто будет?"
         
@@ -159,13 +159,11 @@ async def send_outdoor_poll():
             • Воду
             """
             
-            full_message = poll_message + reminder
-            
             # Добавляем прогноз погоды, если удалось получить
             if weather_info:
-                full_message += f"\n\n{weather_info}"
+                full_message = reminder + f"\n\n{weather_info}"
             else:
-                full_message += "\n\n🌤️ Прогноз погоды временно недоступен"
+                full_message = reminder + "\n\n🌤️ Прогноз погоды временно недоступен"
             
             await bot_instance.send_message(full_message)
             bot_instance.logger.info("Опрос о тренировке на улице отправлен с прогнозом погоды")
