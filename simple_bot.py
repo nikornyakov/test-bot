@@ -14,7 +14,7 @@ def get_weather_forecast():
             return None
             
         # Координаты Санкт-Петербурга
-        lat, lon = 59.9343, 30.3351
+        lat, lon = 59.917913, 30.304852
         
         url = f"https://api.openweathermap.org/data/2.5/forecast"
         params = {
@@ -151,7 +151,8 @@ async def send_outdoor_poll():
         if success:
             # Формируем сообщение с напоминанием и погодой
             reminder = """
-            💡 Место проведения: уличная площадка
+             Адрес: Санкт-Петербург, набережная реки Фонтанки, 130
+            🔗 Ссылка на площадку: https://yandex.ru/maps/-/CPFZZ61k
             Не забудьте:
             • Удобную одежду для улицы
             • Кроссовки для уличной игры
