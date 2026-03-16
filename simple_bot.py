@@ -151,8 +151,26 @@ async def send_outdoor_poll():
         if not await bot_instance.initialize_bot():
             return False
         
-        # Получаем прогноз погоды
-        weather_info = get_weather_forecast(training_date)
+        # Получаем прогноз погоды с повторными попытками
+        max_retries = 3
+        weather_info = None
+        
+        for attempt in range(max_retries):
+            weather_info = get_weather_forecast(training_date)
+            if weather_info:
+                bot_instance.logger.info(f"Прогноз погоды получен с попытки {attempt + 1}")
+                break
+            else:
+                bot_instance.logger.warning(f"Попытка {attempt + 1}: Прогноз погоды недоступен")
+                if attempt < max_retries - 1:
+                    bot_instance.logger.info("Повторная попытка через 2 секунды...")
+                    import time
+                    time.sleep(2)
+        
+        # Отправляем опрос только если есть прогноз погоды
+        if not weather_info:
+            bot_instance.logger.error(f"Прогноз погоды недоступен после {max_retries} попыток, опрос не отправлен")
+            return False
         
         # Отправляем опрос
         success = await bot_instance.send_poll(
@@ -169,11 +187,8 @@ async def send_outdoor_poll():
 Ссылка на площадку: https://yandex.ru/maps/-/CPFZZ61k
             """
             
-            # Добавляем прогноз погоды, если удалось получить
-            if weather_info:
-                full_message = reminder + f"\n\n{weather_info}"
-            else:
-                full_message = reminder + "\n\n🌤️ Прогноз погоды временно недоступен"
+            # Добавляем прогноз погоды (он точно есть, т.к. проверка выше)
+            full_message = reminder + f"\n\n{weather_info}"
             
             await bot_instance.send_message(full_message)
             bot_instance.logger.info("Опрос о тренировке на улице отправлен с прогнозом погоды")
