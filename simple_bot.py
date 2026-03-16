@@ -143,7 +143,7 @@ async def send_outdoor_poll():
     if True:  # Для тестирования - работает каждый день
         # Всегда используем воскресную дату для опроса
         training_date = get_next_sunday_date()
-        question = f"Тренировка ({training_date}) в 13:13\nКто будет?"
+        question = f"🏀 Баскетбол на улице ({training_date}) в 13:13 🏀\nКто будет?"
         options = ["✅ Буду", "❌ Не смогу", "🤔 Еще не знаю", "⏰ Опоздаю"]
         poll_message = f"Тренировка ({training_date}) в 13:13. Кто будет?"
         
