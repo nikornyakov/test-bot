@@ -40,7 +40,7 @@ def get_weather_forecast(training_date):
             'appid': api_key,
             'units': 'metric',  # Цельсий
             'lang': 'ru',    # Русский язык
-            'cnt': 8         # Прогноз на 24 часа (3-х часовые интервалы)
+            'cnt': 40        # Прогноз на 5 дней (3-х часовые интервалы)
         }
         
         logging.info(f"Запрос к API: {url} с параметрами lat={lat}, lon={lon}")
