@@ -33,14 +33,14 @@ def get_weather_forecast(training_date):
         # Координаты Санкт-Петербурга
         lat, lon = 59.917913, 30.304852
         
-        url = f"https://api.openweathermap.org/data/3.0/onecall"
+        url = f"https://api.openweathermap.org/data/2.5/forecast"
         params = {
             'lat': lat,
             'lon': lon,
             'appid': api_key,
             'units': 'metric',  # Цельсий
             'lang': 'ru',    # Русский язык
-            'exclude': 'current,minutely,hourly,alerts'  # Только ежедневные прогнозы
+            'cnt': 8         # Прогноз на 24 часа (3-х часовые интервалы)
         }
         
         logging.info(f"Запрос к API: {url} с параметрами lat={lat}, lon={lon}")
@@ -61,8 +61,7 @@ def get_weather_forecast(training_date):
         response.raise_for_status()
         
         data = response.json()
-        daily_forecasts = data.get('daily', [])
-        logging.info(f"Получен ответ от API: {len(daily_forecasts)} ежедневных прогнозов")
+        logging.info(f"Получен ответ от API: {len(data.get('list', []))} прогнозов")
         
         # Ищем прогноз на воскресенье (ближайшее)
         target_date = datetime.strptime(training_date, "%d.%m.%Y")
@@ -71,23 +70,36 @@ def get_weather_forecast(training_date):
         
         # Ищем прогноз на целевую дату (воскресенье)
         target_forecast = None
-        for forecast in daily_forecasts:
-            forecast_date = datetime.fromtimestamp(forecast['dt']).date()
+        for item in data['list']:
+            forecast_dt = datetime.fromtimestamp(item['dt'])
             
-            if forecast_date == target_date_only:
-                target_forecast = forecast
-                logging.info(f"Найден прогноз на {forecast_date}")
+            if (forecast_dt.date() == target_date_only and 
+                12 <= forecast_dt.hour <= 14):
+                target_forecast = item
+                logging.info(f"Найден прогноз на {forecast_dt} в 12-14 часов")
                 break
+        
+        if not target_forecast:
+            # Если не нашли точный прогноз, берем первый на воскресенье
+            for item in data['list']:
+                forecast_dt = datetime.fromtimestamp(item['dt'])
+                if forecast_dt.date() == target_date_only:
+                    target_forecast = item
+                    logging.info(f"Найден прогноз на {forecast_dt} (любое время)")
+                    break
         
         if not target_forecast:
             logging.error(f"Прогноз на дату {target_date_only} не найден в данных API")
             return None
             
-        # Извлекаем данные из прогноза
-        temp = target_forecast['temp']['day']
-        condition = target_forecast['weather'][0]['description']
-        wind_speed = target_forecast['wind_speed']
-        humidity = target_forecast['humidity']
+        main = target_forecast['main']
+        weather = target_forecast['weather'][0]
+        wind = target_forecast['wind']
+        
+        temp = main['temp']
+        condition = weather['description']
+        wind_speed = wind['speed']
+        humidity = main['humidity']
         
         weather_info = f"🌤️ *Прогноз на {training_date}:*\n"
         weather_info += f"🌡️ Температура: {temp:.1f}°C\n"
